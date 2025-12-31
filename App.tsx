@@ -174,7 +174,7 @@ const App: React.FC = () => {
             console.error("PeerJS Error:", err);
             resetPeer(); 
             setGameState(GameState.ROLE_SELECT); 
-            alert("Erro de conexão. Tente novamente.");
+            alert("Erro de conexão com o PeerJS. Tente novamente.");
         });
 
         peer.on('connection', (conn: any) => {
@@ -605,7 +605,7 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between bg-[#3e2723]/5 p-4 border-4 border-[#3e2723]/20">
-                                    <span className="text-2xl font-black uppercase truncate max-w-[200px]">Choice: {p.currentChoice || '---'}</span>
+                                    <span className="text-2xl font-black uppercase truncate max-w-[200px]">Escolha: {p.currentChoice || '---'}</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => adjustLife(p.id, -1)} className="minecraft-button w-14 h-14 text-4xl shadow-xl">-</button>
                                         <button onClick={() => adjustLife(p.id, 1)} className="minecraft-button w-14 h-14 text-4xl shadow-xl">+</button>

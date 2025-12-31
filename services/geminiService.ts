@@ -31,7 +31,7 @@ const parseLuckDatabase = (): Omit<PlayerEffect, 'id'>[] => {
 export const generateAIRound = async (usedItems: string[], luckBlockAppeared: boolean, players: Player[]): Promise<AIRoundData> => {
     try {
         const ai = getAI();
-        const luckChance = luckBlockAppeared ? 0.05 : 0.15;
+        const luckChance = luckBlockAppeared ? 0.05 : 0.12;
         const isLuckRound = Math.random() < luckChance;
 
         if (isLuckRound) {
@@ -65,20 +65,16 @@ export const generateAIRound = async (usedItems: string[], luckBlockAppeared: bo
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Você é o Oráculo do jogo Minecraft Clash. Gere uma rodada desafiadora.
-            Modo Selecionado: ${selectedMode}.
-            Itens Proibidos (já usados): ${usedItems.join(', ')}.
+            contents: `Você é o Oráculo de Minecraft. Gere uma rodada para o modo: "${selectedMode}".
+            
+            REGRAS OBRIGATÓRIAS:
+            1. Se o modo for "Tema da Sorte", retorne obrigatoriamente "items": []. O tema deve ser amplo como "Algo que queima" ou "Um bloco de construção".
+            2. Para qualquer outro modo, retorne exatamente 4 itens reais de Minecraft em "items".
+            3. Responda APENAS com o objeto JSON abaixo. Sem textos extras.
 
-            REGRAS ESTRITAS:
-            1. Se o modo for "Tema da Sorte", a lista de "items" deve ser OBRIGATORIAMENTE vazia []. O tema deve ser uma categoria (ex: "Algo feito de madeira").
-            2. Para outros modos, a lista "items" deve conter exatamente 4 nomes de itens do Minecraft.
-            3. A "description" deve ser uma instrução curta (max 12 palavras) sobre o que os jogadores devem fazer.
-            4. Retorne APENAS o JSON, sem explicações ou markdown.
-
-            FORMATO:
             {
-              "theme": "Nome do Tema",
-              "description": "Instrução curta",
+              "theme": "Nome do Tema Curto",
+              "description": "Instrução de 1 frase",
               "items": ["Item1", "Item2", "Item3", "Item4"],
               "difficulty": "médio"
             }`,
@@ -87,13 +83,16 @@ export const generateAIRound = async (usedItems: string[], luckBlockAppeared: bo
             }
         });
 
-        let text = response.text || "";
-        // Remove blocos de código markdown se o modelo os incluir por engano
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        let rawText = response.text || "{}";
+        // Limpeza agressiva de markdown ou textos extras
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            rawText = jsonMatch[0];
+        }
+
+        const result = JSON.parse(rawText);
         
-        const result = JSON.parse(text);
-        
-        // Forçar items vazios se for Tema da Sorte para garantir que o input de texto apareça
+        // Garante integridade se o modelo falhar em seguir o modo
         const finalItems = isWritingMode ? [] : (result.items || []);
 
         return {
@@ -103,12 +102,12 @@ export const generateAIRound = async (usedItems: string[], luckBlockAppeared: bo
             itemIds: finalItems.map(() => Math.random().toString(36).substr(2, 9))
         };
     } catch (error) {
-        console.error("AI Generation failed, using fallback:", error);
+        console.error("AI Error:", error);
         return {
             mode: 'Mob Misterioso',
-            theme: 'Falha na Matrix do Nether',
-            description: 'O Oráculo se perdeu no Vazio! Escolha um item de sobrevivência clássico.',
-            items: ['Picareta de Diamante', 'Espada de Ferro', 'Pão', 'Tocha'],
+            theme: 'Erro no Oráculo',
+            description: 'Ocorreu uma falha na conexão. Escolha uma das defesas clássicas.',
+            items: ['Picareta', 'Espada', 'Tocha', 'Pão'],
             itemIds: ['f1', 'f2', 'f3', 'f4'],
             difficulty: 'fácil'
         };

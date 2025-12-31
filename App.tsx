@@ -128,7 +128,9 @@ const App: React.FC = () => {
       config: overrides?.config || config,
       usedItems: overrides?.usedItems || usedItems,
     };
-    connsRef.current.forEach(c => c.open && c.send(data));
+    connsRef.current.forEach(c => {
+        if (c.open) c.send(data);
+    });
   };
 
   const resetPeer = () => {
@@ -146,7 +148,10 @@ const App: React.FC = () => {
     setIsLoading(true);
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
     try {
-        const peer = new Peer(`MCCLASH-${roomId}`);
+        // PeerJS com opções explícitas para evitar problemas em GH Pages
+        const peer = new Peer(`MCCLASH-${roomId}`, {
+            debug: 1
+        });
         peerRef.current = peer;
 
         peer.on('open', (id: string) => {
@@ -172,13 +177,20 @@ const App: React.FC = () => {
 
         peer.on('error', (err: any) => { 
             console.error("PeerJS Error:", err);
+            if (err.type === 'unavailable-id') {
+                alert("Este ID de sala já está em uso. Tente novamente.");
+            } else {
+                alert("Erro de conexão. Verifique sua internet.");
+            }
             resetPeer(); 
             setGameState(GameState.ROLE_SELECT); 
-            alert("Erro de conexão com o PeerJS. Tente novamente.");
         });
 
         peer.on('connection', (conn: any) => {
-          conn.on('open', () => { connsRef.current.push(conn); broadcastState(); });
+          conn.on('open', () => { 
+            connsRef.current.push(conn); 
+            broadcastState(); 
+          });
           conn.on('data', (data: any) => {
             if (data.type === 'JOIN') {
               const p: Player = { ...data.player, lives: config.initialLives, effects: [], currentChoice: '', isRevealed: false, lostLifeThisRound: false, damageToTake: 1, isReady: true, isHost: false };
@@ -205,6 +217,7 @@ const App: React.FC = () => {
           });
         });
     } catch (e) {
+        console.error("Peer creation failed", e);
         setIsLoading(false);
         setGameState(GameState.ROLE_SELECT);
     }
@@ -244,11 +257,12 @@ const App: React.FC = () => {
               console.error("Join Error:", err);
               resetPeer(); 
               setGameState(GameState.ROLE_SELECT); 
-              alert("Sala não encontrada.");
+              alert("Sala não encontrada ou erro de rede.");
           });
         });
     } catch (e) {
         setIsLoading(false);
+        setGameState(GameState.ROLE_SELECT);
     }
   };
 
@@ -275,6 +289,7 @@ const App: React.FC = () => {
         console.error("AI Error:", error);
         setGameState(GameState.LOBBY);
         broadcastState({ gameState: GameState.LOBBY });
+        alert("O Oráculo falhou ao gerar a rodada. Verifique a chave de API.");
     }
   };
 
@@ -333,7 +348,6 @@ const App: React.FC = () => {
     ].includes(mode);
   };
 
-  // Se o modo for 'Tema da Sorte' OU a lista de itens estiver vazia, habilita o modo de escrita
   const isWritingMode = aiData?.mode === 'Tema da Sorte' || (aiData && aiData.items.length === 0 && aiData.mode !== 'Luck Block');
 
   return (
